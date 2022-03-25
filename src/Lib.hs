@@ -49,3 +49,10 @@ values = go []
       where
         folder :: Key -> Value -> JKeyValues
         folder key = go (AK.toString key : keyPath)
+    go keyPath (Array _) = unexpectedType "array" keyPath
+    go keyPath (Number _) = unexpectedType "number" keyPath
+    go keyPath (Bool _) = unexpectedType "bool" keyPath
+    go keyPath Null = unexpectedType "null" keyPath
+
+unexpectedType :: String -> Path -> a
+unexpectedType jtype keyPath = error $ mconcat ["Unexpected ", jtype, " at ", show $ reverse keyPath]
