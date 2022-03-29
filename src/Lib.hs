@@ -5,6 +5,7 @@ import qualified Data.Aeson.Key as AK
 import qualified Data.Aeson.KeyMap as AKM
 import qualified Data.Map.Strict as M
 import qualified Data.Text as T
+import Debug.Trace
 
 -- | Key path to the value, e.g. @["solar_system", "planet", "earth"]@.
 type Path = [String]
@@ -64,15 +65,19 @@ unValues = Object . M.foldlWithKey' folder AKM.empty
     folder acc (JKey keyPath) value = iter acc keyPath value
 
     iter :: Object -> Path -> JValue -> Object
-    iter object (key:keys) value =
+    iter object k@(key:keys) value =
       let { newObject =
-        case AKM.lookup (AK.fromString key) object of
+        case AKM.lookup (AK.fromString key) (trace_ ("object " <> show object) object) of
           Just (Object nestedObject) -> iter nestedObject keys value
           Just _ -> error $ mconcat ["Unexpected type at ", show key]
-          Nothing -> unfoldJKeyValue (JKey keys) value
+          Nothing -> {-traceShowId $-} unfoldJKeyValue (JKey k) value
       }
-      in AKM.insert (AK.fromString key) (Object newObject) object
+      in trace (mconcat ["** iter ", show object, " keys: ", show k, " value: ", show value, "\nnewObject: ", show newObject]) $
+        AKM.insert (AK.fromString key) (Object newObject) object
     iter _ [] _ = error "No keys left"
+
+trace_ :: String -> a -> a
+trace_ _ = id
 
 {-
 
