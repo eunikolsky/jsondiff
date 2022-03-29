@@ -37,7 +37,7 @@ Object
     )
   ]
 
-[ ("key.a", "b") ]
+[ (["key", "a"], "b") ]
 -}
 
 values :: Value -> JKeyValues
@@ -56,3 +56,46 @@ values = go []
 
 unexpectedType :: String -> Path -> a
 unexpectedType jtype keyPath = error $ mconcat ["Unexpected ", jtype, " at ", show $ reverse keyPath]
+
+unValues :: JKeyValues -> Value
+unValues = Object . M.foldlWithKey' folder AKM.empty
+  where
+    folder :: Object -> JKey -> JValue -> Object
+    folder acc (JKey keyPath) value = iter acc keyPath value
+
+    iter :: Object -> Path -> JValue -> Object
+    iter object (key:keys) value =
+      let { newObject =
+        case AKM.lookup (AK.fromString key) object of
+          Just (Object nestedObject) -> iter nestedObject keys value
+          Just _ -> error $ mconcat ["Unexpected type at ", show key]
+          Nothing -> unfoldJKeyValue (JKey keys) value
+      }
+      in AKM.insert (AK.fromString key) (Object newObject) object
+    iter _ [] _ = error "No keys left"
+
+{-
+
+unValues [ (["main", "yes"], "YES"), (["main", "no"], "NO") ]
+
+folder empty ["main", "no"] "NO" = iter empty ["main", "no"] "NO"
+= { newObject = Nothing -> [ ("no", "NO") ] in
+    [ ("main", [ ("no", "NO") ]) ] }
+
+folder [ ("main", [ ("no", "NO") ]) ] ["main", "yes"] "YES" = iter …
+= { newObject = Just [ ("no", "NO" ) ] -> iter [ ("no", "NO") ] ["yes"] "YES"
+  = { newObject = Nothing -> [ ("yes", "YES") ] in
+      [ ("no", "NO"), ("yes", "YES") ]
+    } in
+
+  }
+
+-}
+
+unfoldJKeyValue :: JKey -> JValue -> Object
+unfoldJKeyValue (JKey keyPath) (JValue value) = foldr iter AKM.empty keyPath
+  where
+    iter :: String -> Object -> Object
+    iter x acc = AKM.singleton
+      (AK.fromString x)
+      (if AKM.null acc then String value else Object acc)
