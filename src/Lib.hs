@@ -3,9 +3,9 @@ module Lib where
 import Data.Aeson
 import qualified Data.Aeson.Key as AK
 import qualified Data.Aeson.KeyMap as AKM
+import Data.List (singleton)
 import qualified Data.Map.Strict as M
 import qualified Data.Text as T
-import Debug.Trace
 
 -- | Key path to the value, e.g. @["solar_system", "planet", "earth"]@.
 type Path = [String]
@@ -59,43 +59,14 @@ unexpectedType :: String -> Path -> a
 unexpectedType jtype keyPath = error $ mconcat ["Unexpected ", jtype, " at ", show $ reverse keyPath]
 
 unValues :: JKeyValues -> Value
-unValues = Object . M.foldlWithKey' folder AKM.empty
+unValues = Object
+  . foldr combine AKM.empty
+  . M.foldMapWithKey (\k -> singleton . unfoldJKeyValue k)
   where
-    folder :: Object -> JKey -> JValue -> Object
-    folder acc (JKey keyPath) value = iter acc keyPath value
-
-    iter :: Object -> Path -> JValue -> Object
-    iter object k@(key:keys) value =
-      let { newObject =
-        case AKM.lookup (AK.fromString key) (trace_ ("object " <> show object) object) of
-          Just (Object nestedObject) -> iter nestedObject keys value
-          Just _ -> error $ mconcat ["Unexpected type at ", show key]
-          Nothing -> {-traceShowId $-} unfoldJKeyValue (JKey k) value
-      }
-      in trace (mconcat ["** iter ", show object, " keys: ", show k, " value: ", show value, "\nnewObject: ", show newObject]) $
-        AKM.insert (AK.fromString key) (Object newObject) object
-    iter _ [] _ = error "No keys left"
-
-trace_ :: String -> a -> a
-trace_ _ = id
-
-{-
-
-unValues [ (["main", "yes"], "YES"), (["main", "no"], "NO") ]
-
-folder empty ["main", "no"] "NO" = iter empty ["main", "no"] "NO"
-= { newObject = Nothing -> [ ("no", "NO") ] in
-    [ ("main", [ ("no", "NO") ]) ] }
-
-folder [ ("main", [ ("no", "NO") ]) ] ["main", "yes"] "YES" = iter …
-= { newObject = Just [ ("no", "NO" ) ] -> iter [ ("no", "NO") ] ["yes"] "YES"
-  = { newObject = Nothing -> [ ("yes", "YES") ] in
-      [ ("no", "NO"), ("yes", "YES") ]
-    } in
-
-  }
-
--}
+    combine :: Object -> Object -> Object
+    combine = AKM.unionWith $ \v1 v2 -> case (v1, v2) of
+      (Object o1, Object o2) -> Object $ combine o1 o2
+      _ -> error "Unexpected non-object values"
 
 unfoldJKeyValue :: JKey -> JValue -> Object
 unfoldJKeyValue (JKey keyPath) (JValue value) = foldr iter AKM.empty keyPath
