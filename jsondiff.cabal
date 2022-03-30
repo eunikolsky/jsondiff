@@ -48,6 +48,7 @@ executable jsondiff-exe
   build-depends:
       aeson
     , base >=4.7 && <5
+    , bytestring
     , containers
     , jsondiff
     , text
