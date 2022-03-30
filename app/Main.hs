@@ -3,8 +3,7 @@
 module Main where
 
 import Data.Aeson
-import qualified Data.ByteString.Lazy as BSL
-import qualified Data.ByteString.Lazy.Char8 as BSL8
+import qualified Data.ByteString.Lazy.Char8 as BSL8 (putStrLn)
 import Data.Map.Strict ((\\))
 import Lib
 import System.Environment (getArgs)
@@ -19,7 +18,7 @@ main = do
 
 printDiff :: FilePath -> FilePath -> IO ()
 printDiff file1 file2 = do
-   (Just value1 :: Maybe JKeyValues) <- fmap values . decode <$> BSL.readFile file1
-   (Just value2 :: Maybe JKeyValues) <- fmap values . decode <$> BSL.readFile file2
+   (Just value1 :: Maybe JKeyValues) <- fmap values <$> decodeFileStrict' file1
+   (Just value2 :: Maybe JKeyValues) <- fmap values <$> decodeFileStrict' file2
    let diff = value1 \\ value2
    BSL8.putStrLn . encode . unValues $ diff
