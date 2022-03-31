@@ -1,0 +1,14 @@
+{
+  "main": {
+    "bool": {
+      "no": "no",
+      "yes": "yes"
+    },
+    "cancel": "Cancel",
+    "save": "Save"
+  },
+  "group": {
+    "title": "Group"
+  },
+  "root": "root"
+}

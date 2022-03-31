@@ -1,0 +1,16 @@
+{
+  "main": {
+    "no": "ON",
+    "save": "EVAs",
+    "yes": "SEY"
+  },
+  "group": {
+    "inside": {
+      "group": {
+        "cancel": "LECNAc"
+      }
+    },
+    "remove": "EVOMER"
+  },
+  "root": "TOOr"
+}

@@ -1,0 +1,16 @@
+{
+  "main": {
+    "no": "no",
+    "save": "Save",
+    "yes": "yes"
+  },
+  "group": {
+    "inside": {
+      "group": {
+        "cancel": "Cancel"
+      }
+    },
+    "remove": "remove"
+  },
+  "root": "Root"
+}
