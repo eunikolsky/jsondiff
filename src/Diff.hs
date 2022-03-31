@@ -28,7 +28,13 @@ findChanges oldEnglish = DiffMap
   where
     determineDiff old current = if old == current then NoChange else ValueChange old current
 
-type ActionResultsWith a = ([T.Text], a)
+-- type ActionResultsWith a = ([T.Text], a)
 
-applyChanges :: CurrentTranslations -> NewTranslations -> DiffMap -> ActionResultsWith UpdatedTranslations
-applyChanges = undefined
+applyChanges :: CurrentTranslations -> NewTranslations -> DiffMap -> UpdatedTranslations
+applyChanges current new (DiffMap diffs) = M.foldlWithKey' applyDifference current new
+  where
+    applyDifference :: UpdatedTranslations -> JKey -> JValue -> UpdatedTranslations
+    applyDifference acc k v = case M.lookup k diffs of
+      Just NoChange -> M.insert k v acc
+      Just (ValueChange _ _) -> acc
+      Nothing -> acc
