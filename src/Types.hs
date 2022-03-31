@@ -14,11 +14,15 @@ instance Show JKey where
 
 -- TODO a value can also be a list of strings now.
 newtype JValue = JValue { unJValue :: T.Text }
+  deriving Eq
+
 instance Show JValue where
   show = show . unJValue
 
+type JKeyMap = M.Map JKey
+
 -- | Representation of a JSON translation file.
-type JKeyValues = M.Map JKey JValue
+type JKeyValues = JKeyMap JValue
 
 {-
 {
