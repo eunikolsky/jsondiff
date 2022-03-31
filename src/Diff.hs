@@ -1,7 +1,10 @@
+{-# LANGUAGE GeneralisedNewtypeDeriving #-}
+
 module Diff where
 
+import Control.Monad.Writer
+import Data.Foldable (foldrM)
 import qualified Data.Map.Strict as M
-import qualified Data.Text as T (Text)
 
 import Types
 
@@ -28,13 +31,23 @@ findChanges oldEnglish = DiffMap
   where
     determineDiff old current = if old == current then NoChange else ValueChange old current
 
--- type ActionResultsWith a = ([T.Text], a)
+newtype IgnoredOutdatedValues = IgnoredOutdatedValues (JKeyMap (JValue, JValue))
+  deriving (Monoid, Semigroup, Show)
 
-applyChanges :: CurrentTranslations -> NewTranslations -> DiffMap -> UpdatedTranslations
-applyChanges current new (DiffMap diffs) = M.foldlWithKey' applyDifference current new
+type DiffResultsWith = Writer IgnoredOutdatedValues
+
+applyChanges :: CurrentTranslations -> NewTranslations -> DiffMap -> DiffResultsWith UpdatedTranslations
+applyChanges current new (DiffMap diffs) = foldrWithKeyM applyDifference current new
   where
-    applyDifference :: UpdatedTranslations -> JKey -> JValue -> UpdatedTranslations
-    applyDifference acc k v = case M.lookup k diffs of
-      Just NoChange -> M.insert k v acc
-      Just (ValueChange _ _) -> acc
-      Nothing -> acc
+    applyDifference :: JKey -> JValue -> UpdatedTranslations -> DiffResultsWith UpdatedTranslations
+    applyDifference k v acc = case M.lookup k diffs of
+      Just NoChange -> pure $ M.insert k v acc
+      Just (ValueChange oldValue currentValue) -> do
+        tell $ IgnoredOutdatedValues $ M.singleton k (oldValue, currentValue)
+        pure acc
+      Nothing -> pure acc
+
+-- 1 : 2 : 3 : []
+-- 1 `f` (2 `f` (3 `f` []))
+foldrWithKeyM :: Monad m => (k -> a -> b -> m b) -> b -> M.Map k a -> m b
+foldrWithKeyM f z = foldrM (uncurry f) z . M.toAscList
