@@ -22,8 +22,8 @@ values = go []
     go keyPath (Bool _) = unexpectedType "bool" keyPath
     go keyPath Null = unexpectedType "null" keyPath
 
-unexpectedType :: String -> Path -> a
-unexpectedType jtype keyPath = error $ mconcat ["Unexpected ", jtype, " at ", show $ reverse keyPath]
+    unexpectedType :: String -> Path -> a
+    unexpectedType jtype keyPath = error $ mconcat ["Unexpected ", jtype, " at ", show $ reverse keyPath]
 
 unValues :: JKeyValues -> Value
 unValues = Object
