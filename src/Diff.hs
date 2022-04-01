@@ -50,9 +50,10 @@ applyChanges current new (DiffMap diffs) = foldrWithKeyM applyDifference current
         pure acc
       Nothing -> pure acc
 
-formatIgnoredOutdatedValues :: IgnoredOutdatedValues -> T.Text
-formatIgnoredOutdatedValues (IgnoredOutdatedValues ignoredOutdatedValues) =
-  T.unlines $
+formatIgnoredOutdatedValues :: IgnoredOutdatedValues -> Maybe T.Text
+formatIgnoredOutdatedValues (IgnoredOutdatedValues ignoredOutdatedValues)
+  | M.null ignoredOutdatedValues = Nothing
+  | otherwise = Just . T.unlines $
     [ "These keys were ignored because their values changed since the translation was sent:" ]
     <> map formatIgnoredOutdatedValue (M.toAscList ignoredOutdatedValues)
   where
@@ -69,7 +70,7 @@ type WarningsText = T.Text
 integrateChanges
   :: OldEnglish -> CurrentEnglish
   -> CurrentTranslations -> NewTranslations
-  -> Writer WarningsText UpdatedTranslations
+  -> Writer (Maybe WarningsText) UpdatedTranslations
 integrateChanges oldEnglish currentEnglish currentTranslations newTranslations = do
   let diffMap = findChanges oldEnglish currentEnglish
   let updatedTranslations = applyChanges currentTranslations newTranslations diffMap
