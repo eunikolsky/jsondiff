@@ -53,16 +53,12 @@ applyChanges current new (DiffMap diffs) = foldrWithKeyM applyDifference current
 formatIgnoredOutdatedValues :: IgnoredOutdatedValues -> Maybe T.Text
 formatIgnoredOutdatedValues (IgnoredOutdatedValues ignoredOutdatedValues)
   | M.null ignoredOutdatedValues = Nothing
-  | otherwise = Just . T.unlines $
+  | otherwise = Just . T.intercalate "\n" $
     [ "These keys were ignored because their values changed since the translation was sent:" ]
     <> map formatIgnoredOutdatedValue (M.toAscList ignoredOutdatedValues)
   where
-    formatIgnoredOutdatedValue (key, (JValue oldValue, JValue currentValue)) =
-      T.unwords
-        [ T.pack $ show key
-        , ":", oldValue
-        , "=>", currentValue
-        ]
+    formatIgnoredOutdatedValue (key, (JValue oldValue, JValue currentValue)) = mconcat
+      [ T.pack $ show key , ": ", oldValue , " => ", currentValue ]
 
 type WarningsText = T.Text
 
