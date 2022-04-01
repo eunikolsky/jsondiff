@@ -1,5 +1,6 @@
 {-# LANGUAGE GeneralisedNewtypeDeriving #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE TupleSections #-}
 
 module Diff where
 
@@ -7,6 +8,7 @@ import Control.Monad.Writer
 import qualified Data.Bifunctor
 import Data.Foldable (foldrM)
 import qualified Data.Map.Strict as M
+import qualified Data.Map.Merge.Strict as M
 import qualified Data.Text as T
 
 import Types
@@ -16,6 +18,8 @@ data Difference
   = NoChange
   -- | The value at this key has changed from @old@ to @new@.
   | ValueChange JValue JValue
+  -- | The value at this key has been removed.
+  | MissingValue JValue
   deriving Show
 
 newtype DiffMap = DiffMap { unDiffMap :: JKeyMap Difference }
@@ -29,15 +33,30 @@ type UpdatedTranslations = JKeyValues
 
 findChanges :: OldEnglish -> CurrentEnglish -> DiffMap
 findChanges oldEnglish = DiffMap
-  . M.intersectionWith determineDiff oldEnglish
+  . M.merge whenMissingCurrent whenMissingOld whenMatched oldEnglish
 
   where
+    -- | Was in old, missing in current => MissingValue
+    whenMissingCurrent = M.mapMissing (const MissingValue)
+    -- | Was in current, missing in old => ignore it, we don't care
+    whenMissingOld = M.dropMissing
+    -- | Present in both old and current => either NoChange or ValueChange
+    whenMatched = M.zipWithMatched (const determineDiff)
     determineDiff old current = if old == current then NoChange else ValueChange old current
 
+-- | A map of json key-values whose value has changed.
 newtype IgnoredOutdatedValues = IgnoredOutdatedValues (JKeyMap (JValue, JValue))
   deriving (Monoid, Semigroup, Show)
 
-type DiffResultsWith = Writer IgnoredOutdatedValues
+-- | A map of json key-values that have been removed.
+newtype IgnoredMissingValues = IgnoredMissingValues JKeyValues
+  deriving (Monoid, Semigroup, Show)
+
+-- | Contains changed and removed json key-values.
+newtype IgnoredValues = IgnoredValues (IgnoredOutdatedValues, IgnoredMissingValues)
+  deriving (Monoid, Semigroup, Show)
+
+type DiffResultsWith = Writer IgnoredValues
 
 applyChanges :: CurrentTranslations -> NewTranslations -> DiffMap -> DiffResultsWith UpdatedTranslations
 applyChanges current new (DiffMap diffs) = foldrWithKeyM applyDifference current new
@@ -46,19 +65,40 @@ applyChanges current new (DiffMap diffs) = foldrWithKeyM applyDifference current
     applyDifference k v acc = case M.lookup k diffs of
       Just NoChange -> pure $ M.insert k v acc
       Just (ValueChange oldValue currentValue) -> do
-        tell $ IgnoredOutdatedValues $ M.singleton k (oldValue, currentValue)
+        recordOutdatedValue k oldValue currentValue
+        pure acc
+      Just (MissingValue currentValue) -> do
+        recordMissingValue k currentValue
         pure acc
       Nothing -> pure acc
+
+    recordOutdatedValue :: JKey -> JValue -> JValue -> DiffResultsWith ()
+    recordOutdatedValue k oldValue newValue =
+      tell . IgnoredValues . (, mempty) . IgnoredOutdatedValues $ M.singleton k (oldValue, newValue)
+
+    recordMissingValue :: JKey -> JValue -> DiffResultsWith ()
+    recordMissingValue k =
+      tell . IgnoredValues . (mempty, ) . IgnoredMissingValues . M.singleton k
 
 formatIgnoredOutdatedValues :: IgnoredOutdatedValues -> Maybe T.Text
 formatIgnoredOutdatedValues (IgnoredOutdatedValues ignoredOutdatedValues)
   | M.null ignoredOutdatedValues = Nothing
-  | otherwise = Just . T.intercalate "\n" $
+  | otherwise = Just . T.unlines $
     [ "These keys were ignored because their values changed since the translation was sent:" ]
     <> map formatIgnoredOutdatedValue (M.toAscList ignoredOutdatedValues)
   where
     formatIgnoredOutdatedValue (key, (JValue oldValue, JValue currentValue)) = mconcat
       [ T.pack $ show key , ": ", oldValue , " => ", currentValue ]
+
+formatIgnoredMissingValues :: IgnoredMissingValues -> Maybe T.Text
+formatIgnoredMissingValues (IgnoredMissingValues ignoredMissingValues)
+  | M.null ignoredMissingValues = Nothing
+  | otherwise = Just . T.unlines $
+    [ "These keys were ignored because they were removed since the translation was sent:" ]
+    <> map formatIgnoredMissingValue (M.toAscList ignoredMissingValues)
+  where
+    formatIgnoredMissingValue (key, JValue value) = mconcat
+      [ T.pack $ show key , ": ", value ]
 
 type WarningsText = T.Text
 
@@ -70,7 +110,15 @@ integrateChanges
 integrateChanges oldEnglish currentEnglish currentTranslations newTranslations = do
   let diffMap = findChanges oldEnglish currentEnglish
   let updatedTranslations = applyChanges currentTranslations newTranslations diffMap
-  mapWriterW formatIgnoredOutdatedValues updatedTranslations
+  mapWriterW combineWarnings updatedTranslations
+
+  where
+    combineWarnings :: IgnoredValues -> Maybe WarningsText
+    combineWarnings (IgnoredValues (ignoredOutdatedValues, ignoredMissingValues)) =
+      mconcat
+        [ formatIgnoredOutdatedValues ignoredOutdatedValues
+        , formatIgnoredMissingValues ignoredMissingValues
+        ]
 
 -- | Maps over the acculumulated output of the @Writer@.
 mapWriterW :: (w -> u) -> Writer w a -> Writer u a
