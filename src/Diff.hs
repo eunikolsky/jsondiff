@@ -1,10 +1,12 @@
 {-# LANGUAGE GeneralisedNewtypeDeriving #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 module Diff where
 
 import Control.Monad.Writer
 import Data.Foldable (foldrM)
 import qualified Data.Map.Strict as M
+import qualified Data.Text as T
 
 import Types
 
@@ -46,6 +48,19 @@ applyChanges current new (DiffMap diffs) = foldrWithKeyM applyDifference current
         tell $ IgnoredOutdatedValues $ M.singleton k (oldValue, currentValue)
         pure acc
       Nothing -> pure acc
+
+formatIgnoredOutdatedValues :: IgnoredOutdatedValues -> T.Text
+formatIgnoredOutdatedValues (IgnoredOutdatedValues ignoredOutdatedValues) =
+  T.unlines $
+    [ "These keys were ignored because their values changed since the translation was sent:" ]
+    <> map formatIgnoredOutdatedValue (M.toAscList ignoredOutdatedValues)
+  where
+    formatIgnoredOutdatedValue (key, (JValue oldValue, JValue currentValue)) =
+      T.unwords
+        [ T.pack $ show key
+        , ":", oldValue
+        , "=>", currentValue
+        ]
 
 -- 1 : 2 : 3 : []
 -- 1 `f` (2 `f` (3 `f` []))
