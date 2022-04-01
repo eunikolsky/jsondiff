@@ -4,6 +4,7 @@
 module Diff where
 
 import Control.Monad.Writer
+import qualified Data.Bifunctor
 import Data.Foldable (foldrM)
 import qualified Data.Map.Strict as M
 import qualified Data.Text as T
@@ -61,6 +62,22 @@ formatIgnoredOutdatedValues (IgnoredOutdatedValues ignoredOutdatedValues) =
         , ":", oldValue
         , "=>", currentValue
         ]
+
+type WarningsText = T.Text
+
+-- | The function to purely integrate changes in translations.
+integrateChanges
+  :: OldEnglish -> CurrentEnglish
+  -> CurrentTranslations -> NewTranslations
+  -> Writer WarningsText UpdatedTranslations
+integrateChanges oldEnglish currentEnglish currentTranslations newTranslations = do
+  let diffMap = findChanges oldEnglish currentEnglish
+  let updatedTranslations = applyChanges currentTranslations newTranslations diffMap
+  mapWriterW formatIgnoredOutdatedValues updatedTranslations
+
+-- | Maps over the acculumulated output of the @Writer@.
+mapWriterW :: (w -> u) -> Writer w a -> Writer u a
+mapWriterW f = mapWriter (Data.Bifunctor.second f)
 
 -- 1 : 2 : 3 : []
 -- 1 `f` (2 `f` (3 `f` []))
