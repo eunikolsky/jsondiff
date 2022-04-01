@@ -1,6 +1,12 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module Types where
+module Types
+  ( Path
+  , JKey(..)
+  , JValue(..)
+  , JKeyMap
+  , JKeyValues
+  ) where
 
 import qualified Data.Map.Strict as M (Map)
 import qualified Data.Text as T
