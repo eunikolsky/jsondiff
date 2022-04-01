@@ -5,6 +5,7 @@ import qualified Data.Aeson.Key as AK
 import qualified Data.Aeson.KeyMap as AKM
 import Data.List (singleton)
 import qualified Data.Map.Strict as M
+import qualified Data.Text as T
 
 import Types
 
@@ -16,7 +17,7 @@ values = go []
     go keyPath (Object hashMap) = AKM.foldMapWithKey folder hashMap
       where
         folder :: Key -> Value -> JKeyValues
-        folder key = go (AK.toString key : keyPath)
+        folder key = go (AK.toText key : keyPath)
     go keyPath (Array _) = unexpectedType "array" keyPath
     go keyPath (Number _) = unexpectedType "number" keyPath
     go keyPath (Bool _) = unexpectedType "bool" keyPath
@@ -38,7 +39,7 @@ unValues = Object
 unfoldJKeyValue :: JKey -> JValue -> Object
 unfoldJKeyValue (JKey keyPath) (JValue value) = foldr iter AKM.empty keyPath
   where
-    iter :: String -> Object -> Object
+    iter :: T.Text -> Object -> Object
     iter x acc = AKM.singleton
-      (AK.fromString x)
+      (AK.fromText x)
       (if AKM.null acc then String value else Object acc)

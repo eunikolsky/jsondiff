@@ -4,7 +4,7 @@ import qualified Data.Map.Strict as M (Map)
 import qualified Data.Text as T (Text)
 
 -- | Key path to the value, e.g. @["solar_system", "planet", "earth"]@.
-type Path = [String]
+type Path = [T.Text]
 
 newtype JKey = JKey { unJKey :: Path }
   deriving (Eq, Ord)
