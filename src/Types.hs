@@ -20,12 +20,15 @@ newtype JKey = JKey { unJKey :: Path }
 instance Show JKey where
   show = T.unpack . T.intercalate "." . unJKey
 
--- TODO a value can also be a list of strings now.
-newtype JValue = JValue { unJValue :: T.Text }
+data JValue
+  = JValueString T.Text
+  -- note: we support only (leaf) arrays of strings
+  | JValueArray [T.Text]
   deriving Eq
 
 instance Show JValue where
-  show = show . unJValue
+  show (JValueString s) = show s
+  show (JValueArray a) = show a
 
 type JKeyMap = M.Map JKey
 

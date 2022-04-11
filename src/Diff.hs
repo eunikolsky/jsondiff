@@ -98,8 +98,8 @@ formatIgnoredOutdatedValues (IgnoredOutdatedValues ignoredOutdatedValues)
     [ "These keys were ignored because their values changed since the translation was sent:" ]
     <> map formatIgnoredOutdatedValue (M.toAscList ignoredOutdatedValues)
   where
-    formatIgnoredOutdatedValue (key, (JValue oldValue, JValue currentValue)) = mconcat
-      [ T.pack $ show key , ": ", oldValue , " => ", currentValue ]
+    formatIgnoredOutdatedValue (key, (oldValue, currentValue)) = T.pack $ mconcat
+      [ show key , ": ", show oldValue , " => ", show currentValue ]
 
 formatIgnoredMissingValues :: IgnoredMissingValues -> Maybe T.Text
 formatIgnoredMissingValues (IgnoredMissingValues ignoredMissingValues)
@@ -108,8 +108,8 @@ formatIgnoredMissingValues (IgnoredMissingValues ignoredMissingValues)
     [ "These keys were ignored because they were removed since the translation was sent:" ]
     <> map formatIgnoredMissingValue (M.toAscList ignoredMissingValues)
   where
-    formatIgnoredMissingValue (key, JValue value) = mconcat
-      [ T.pack $ show key , ": ", value ]
+    formatIgnoredMissingValue (key, value) = T.pack $ mconcat
+      [ show key , ": ", show value ]
 
 type WarningsText = T.Text
 

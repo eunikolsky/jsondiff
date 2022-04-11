@@ -30,6 +30,8 @@ library:
   source-dirs: src
   ghc-options:
   - -Wall
+  dependencies:
+  - vector
 
 executables:
   jsondiff-exe:
