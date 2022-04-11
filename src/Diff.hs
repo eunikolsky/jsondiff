@@ -7,7 +7,7 @@ module Diff where
 import Control.Monad.Writer
 import qualified Data.Bifunctor
 import Data.Foldable (foldrM)
-import Data.List (find)
+import Data.List.NonEmpty (NonEmpty, nonEmpty)
 import qualified Data.Map.Strict as M
 import qualified Data.Map.Merge.Strict as M
 import qualified Data.Text as T
@@ -21,8 +21,9 @@ data Difference
   | ValueChange JValue JValue
   -- | The value at this key has been removed.
   | MissingValue JValue
-  -- | The value at this key has been moved to a new @key@.
-  | MovedValue JKey
+  -- | The value at this key has been moved to 1+ new @keys@ (there can be more
+  -- than one key due to duplicate values).
+  | MovedValue (NonEmpty JKey)
   deriving Show
 
 newtype DiffMap = DiffMap { unDiffMap :: JKeyMap Difference }
@@ -34,11 +35,10 @@ type CurrentTranslations = JKeyValues
 type NewTranslations = JKeyValues
 type UpdatedTranslations = JKeyValues
 
-keyForValue :: CurrentEnglish -> JValue -> Maybe JKey
+keysForValue :: CurrentEnglish -> JValue -> Maybe (NonEmpty JKey)
 -- TODO repetitive conversion to list is probably ineffective for big JSONs when
 -- there are a lot of moved values
--- FIXME return all found keys
-keyForValue currentEnglish value = fmap fst . find ((== value) . snd) . M.toList $ currentEnglish
+keysForValue currentEnglish value = nonEmpty . fmap fst . filter ((== value) . snd) . M.toList $ currentEnglish
 
 findChanges :: OldEnglish -> CurrentEnglish -> DiffMap
 findChanges oldEnglish currentEnglish = DiffMap
@@ -47,7 +47,7 @@ findChanges oldEnglish currentEnglish = DiffMap
   where
     -- | Was in old, missing in current => either MissingValue or MovedValue
     whenMissingCurrent = M.mapMissing . const $ \old ->
-      maybe (MissingValue old) MovedValue $ currentEnglish `keyForValue` old
+      maybe (MissingValue old) MovedValue $ currentEnglish `keysForValue` old
     -- | Was in current, missing in old => ignore it, we don't care
     whenMissingOld = M.dropMissing
     -- | Present in both old and current => either NoChange or ValueChange
@@ -80,7 +80,7 @@ applyChanges current new (DiffMap diffs) = foldrWithKeyM applyDifference current
       Just (MissingValue currentValue) -> do
         recordMissingValue k currentValue
         pure acc
-      Just (MovedValue newKey) -> pure $ M.insert newKey v acc -- TODO record a notice
+      Just (MovedValue newKeys) -> pure $ foldr (`M.insert` v) acc newKeys -- TODO record a notice
       Nothing -> pure acc
 
     recordOutdatedValue :: JKey -> JValue -> JValue -> DiffResultsWith ()
