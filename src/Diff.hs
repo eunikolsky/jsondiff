@@ -10,6 +10,7 @@ import Data.Foldable (foldrM)
 import Data.List.NonEmpty (NonEmpty, nonEmpty)
 import qualified Data.Map.Strict as M
 import qualified Data.Map.Merge.Strict as M
+import Data.Maybe (catMaybes)
 import qualified Data.Text as T
 
 import Types
@@ -94,7 +95,7 @@ applyChanges current new (DiffMap diffs) = foldrWithKeyM applyDifference current
 formatIgnoredOutdatedValues :: IgnoredOutdatedValues -> Maybe T.Text
 formatIgnoredOutdatedValues (IgnoredOutdatedValues ignoredOutdatedValues)
   | M.null ignoredOutdatedValues = Nothing
-  | otherwise = Just . T.unlines $ -- TODO unlines => intercalate
+  | otherwise = Just . T.intercalate "\n" $
     [ "These keys were ignored because their values changed since the translation was sent:" ]
     <> map formatIgnoredOutdatedValue (M.toAscList ignoredOutdatedValues)
   where
@@ -104,7 +105,7 @@ formatIgnoredOutdatedValues (IgnoredOutdatedValues ignoredOutdatedValues)
 formatIgnoredMissingValues :: IgnoredMissingValues -> Maybe T.Text
 formatIgnoredMissingValues (IgnoredMissingValues ignoredMissingValues)
   | M.null ignoredMissingValues = Nothing
-  | otherwise = Just . T.unlines $
+  | otherwise = Just . T.intercalate "\n" $
     [ "These keys were ignored because they were removed since the translation was sent:" ]
     <> map formatIgnoredMissingValue (M.toAscList ignoredMissingValues)
   where
@@ -126,10 +127,14 @@ integrateChanges oldEnglish currentEnglish currentTranslations newTranslations =
   where
     combineWarnings :: IgnoredValues -> Maybe WarningsText
     combineWarnings (IgnoredValues (ignoredOutdatedValues, ignoredMissingValues)) =
-      mconcat
+      fmap (T.intercalate "\n") . maybeNonEmpty $ catMaybes
         [ formatIgnoredOutdatedValues ignoredOutdatedValues
         , formatIgnoredMissingValues ignoredMissingValues
         ]
+
+maybeNonEmpty :: [a] -> Maybe [a]
+maybeNonEmpty [] = Nothing
+maybeNonEmpty xs = Just xs
 
 -- | Maps over the acculumulated output of the @Writer@.
 mapWriterW :: (w -> u) -> Writer w a -> Writer u a
