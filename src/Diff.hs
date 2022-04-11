@@ -6,7 +6,7 @@ module Diff where
 import Control.Monad.Writer
 import qualified Data.Bifunctor
 import Data.Foldable (foldrM)
-import Data.List.NonEmpty (NonEmpty, nonEmpty)
+import Data.List.NonEmpty (NonEmpty, nonEmpty, toList)
 import qualified Data.Map.Strict as M
 import qualified Data.Map.Merge.Strict as M
 import Data.Maybe (catMaybes)
@@ -62,30 +62,44 @@ newtype IgnoredOutdatedValues = IgnoredOutdatedValues (JKeyMap (JValue, JValue))
 newtype IgnoredMissingValues = IgnoredMissingValues JKeyValues
   deriving (Monoid, Semigroup, Show)
 
+-- | A map of json key-values that have been moved.
+newtype UpdatedMovedValues = UpdatedMovedValues (JKeyMap (NonEmpty JKey))
+  deriving (Monoid, Semigroup, Show)
+
 -- | Contains changed and removed json key-values.
 data IgnoredValues = IgnoredValues
   { ivOutdated :: IgnoredOutdatedValues
   , ivMissing :: IgnoredMissingValues
+  , ivMoved :: UpdatedMovedValues
   }
   deriving Show
 
 instance Semigroup IgnoredValues where
-  (IgnoredValues outdated missing) <> (IgnoredValues outdated' missing') =
-    IgnoredValues (outdated <> outdated') (missing <> missing')
+  (IgnoredValues outdated missing moved) <> (IgnoredValues outdated' missing' moved') =
+    IgnoredValues
+      { ivOutdated = outdated <> outdated'
+      , ivMissing = missing <> missing'
+      , ivMoved = moved <> moved'
+      }
 
 instance Monoid IgnoredValues where
   mempty = IgnoredValues
     { ivOutdated = mempty
     , ivMissing = mempty
+    , ivMoved = mempty
     }
 
 ignoredOutdatedValues :: JKeyMap (JValue, JValue) -> IgnoredValues
 ignoredOutdatedValues m = let outdated = IgnoredOutdatedValues m
-  in IgnoredValues { ivOutdated = outdated, ivMissing = mempty }
+  in IgnoredValues { ivOutdated = outdated, ivMissing = mempty, ivMoved = mempty }
 
 ignoredMissingValues :: JKeyValues -> IgnoredValues
 ignoredMissingValues m = let missing = IgnoredMissingValues m
-  in IgnoredValues { ivOutdated = mempty, ivMissing = missing }
+  in IgnoredValues { ivOutdated = mempty, ivMissing = missing, ivMoved = mempty }
+
+updatedMovedValues :: JKeyMap (NonEmpty JKey) -> IgnoredValues
+updatedMovedValues m = let moved = UpdatedMovedValues m
+  in IgnoredValues { ivOutdated = mempty, ivMissing = mempty, ivMoved = moved }
 
 type DiffResultsWith = Writer IgnoredValues
 
@@ -101,7 +115,9 @@ applyChanges current new (DiffMap diffs) = foldrWithKeyM applyDifference current
       Just (MissingValue currentValue) -> do
         recordMissingValue k currentValue
         pure acc
-      Just (MovedValue newKeys) -> pure $ foldr (`M.insert` v) acc newKeys -- TODO record a notice
+      Just (MovedValue newKeys) -> do
+        recordMovedValue k newKeys
+        pure $ foldr (`M.insert` v) acc newKeys
       Nothing -> pure acc
 
     recordOutdatedValue :: JKey -> JValue -> JValue -> DiffResultsWith ()
@@ -111,6 +127,10 @@ applyChanges current new (DiffMap diffs) = foldrWithKeyM applyDifference current
     recordMissingValue :: JKey -> JValue -> DiffResultsWith ()
     recordMissingValue k =
       tell . ignoredMissingValues . M.singleton k
+
+    recordMovedValue :: JKey -> NonEmpty JKey -> DiffResultsWith ()
+    recordMovedValue k =
+      tell . updatedMovedValues . M.singleton k
 
 formatIgnoredOutdatedValues :: IgnoredOutdatedValues -> Maybe T.Text
 formatIgnoredOutdatedValues (IgnoredOutdatedValues values)
@@ -132,6 +152,16 @@ formatIgnoredMissingValues (IgnoredMissingValues values)
     formatIgnoredMissingValue (key, value) = T.pack $ mconcat
       [ show key , ": ", show value ]
 
+formatUpdatedMovedValues :: UpdatedMovedValues -> Maybe T.Text
+formatUpdatedMovedValues (UpdatedMovedValues values)
+  | M.null values = Nothing
+  | otherwise = Just . T.intercalate "\n" $
+    [ "Values for these keys were applied at new keys:" ]
+    <> map formatUpdatedMovedValue (M.toAscList values)
+  where
+    formatUpdatedMovedValue (key, newKeys) = T.pack $ mconcat
+      [ show key , " => ", show $ toList newKeys ]
+
 type WarningsText = T.Text
 
 -- | The function to purely integrate changes in translations.
@@ -150,6 +180,7 @@ integrateChanges oldEnglish currentEnglish currentTranslations newTranslations =
       fmap (T.intercalate "\n") . maybeNonEmpty $ catMaybes
         [ formatIgnoredOutdatedValues $ ivOutdated ignoredValues
         , formatIgnoredMissingValues $ ivMissing ignoredValues
+        , formatUpdatedMovedValues $ ivMoved ignoredValues
         ]
 
 maybeNonEmpty :: [a] -> Maybe [a]
