@@ -7,6 +7,7 @@ module Diff where
 import Control.Monad.Writer
 import qualified Data.Bifunctor
 import Data.Foldable (foldrM)
+import Data.List (find)
 import qualified Data.Map.Strict as M
 import qualified Data.Map.Merge.Strict as M
 import qualified Data.Text as T
@@ -20,6 +21,8 @@ data Difference
   | ValueChange JValue JValue
   -- | The value at this key has been removed.
   | MissingValue JValue
+  -- | The value at this key has been moved to a new @key@.
+  | MovedValue JKey
   deriving Show
 
 newtype DiffMap = DiffMap { unDiffMap :: JKeyMap Difference }
@@ -31,18 +34,25 @@ type CurrentTranslations = JKeyValues
 type NewTranslations = JKeyValues
 type UpdatedTranslations = JKeyValues
 
+keyForValue :: CurrentEnglish -> JValue -> Maybe JKey
+-- TODO repetitive conversion to list is probably ineffective for big JSONs when
+-- there are a lot of moved values
+-- FIXME return all found keys
+keyForValue currentEnglish value = fmap fst . find ((== value) . snd) . M.toList $ currentEnglish
+
 findChanges :: OldEnglish -> CurrentEnglish -> DiffMap
-findChanges oldEnglish = DiffMap
-  . M.merge whenMissingCurrent whenMissingOld whenMatched oldEnglish
+findChanges oldEnglish currentEnglish = DiffMap
+  $ M.merge whenMissingCurrent whenMissingOld whenMatched oldEnglish currentEnglish
 
   where
-    -- | Was in old, missing in current => MissingValue
-    whenMissingCurrent = M.mapMissing (const MissingValue)
+    -- | Was in old, missing in current => either MissingValue or MovedValue
+    whenMissingCurrent = M.mapMissing . const $ \old ->
+      maybe (MissingValue old) MovedValue $ currentEnglish `keyForValue` old
     -- | Was in current, missing in old => ignore it, we don't care
     whenMissingOld = M.dropMissing
     -- | Present in both old and current => either NoChange or ValueChange
-    whenMatched = M.zipWithMatched (const determineDiff)
-    determineDiff old current = if old == current then NoChange else ValueChange old current
+    whenMatched = M.zipWithMatched . const $ \old current ->
+      if old == current then NoChange else ValueChange old current
 
 -- | A map of json key-values whose value has changed.
 newtype IgnoredOutdatedValues = IgnoredOutdatedValues (JKeyMap (JValue, JValue))
@@ -70,6 +80,7 @@ applyChanges current new (DiffMap diffs) = foldrWithKeyM applyDifference current
       Just (MissingValue currentValue) -> do
         recordMissingValue k currentValue
         pure acc
+      Just (MovedValue newKey) -> pure $ M.insert newKey v acc -- TODO record a notice
       Nothing -> pure acc
 
     recordOutdatedValue :: JKey -> JValue -> JValue -> DiffResultsWith ()
@@ -83,7 +94,7 @@ applyChanges current new (DiffMap diffs) = foldrWithKeyM applyDifference current
 formatIgnoredOutdatedValues :: IgnoredOutdatedValues -> Maybe T.Text
 formatIgnoredOutdatedValues (IgnoredOutdatedValues ignoredOutdatedValues)
   | M.null ignoredOutdatedValues = Nothing
-  | otherwise = Just . T.unlines $
+  | otherwise = Just . T.unlines $ -- TODO unlines => intercalate
     [ "These keys were ignored because their values changed since the translation was sent:" ]
     <> map formatIgnoredOutdatedValue (M.toAscList ignoredOutdatedValues)
   where
