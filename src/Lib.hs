@@ -6,6 +6,7 @@ import qualified Data.Aeson.KeyMap as AKM
 import Data.List (singleton)
 import qualified Data.Map.Strict as M
 import qualified Data.Text as T
+import GHC.Stack (HasCallStack)
 
 import Types
 
@@ -23,7 +24,7 @@ values = go []
     go keyPath (Bool _) = unexpectedType "bool" keyPath
     go keyPath Null = unexpectedType "null" keyPath
 
-    unexpectedType :: String -> Path -> a
+    unexpectedType :: HasCallStack => String -> Path -> a
     unexpectedType jtype keyPath = error $ mconcat ["Unexpected ", jtype, " at ", show $ reverse keyPath]
 
 unValues :: JKeyValues -> Value
