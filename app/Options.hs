@@ -1,10 +1,11 @@
 module Options
   ( Command(..)
   , DiffOptions(..)
-  , Options.command
+  , command
   ) where
 
-import Options.Applicative
+import Options.Applicative hiding (command)
+import qualified Options.Applicative as Opts (command)
 
 newtype Command = Diff DiffOptions
 
@@ -13,7 +14,11 @@ data DiffOptions = DiffOptions
   , currentTranslationFile :: FilePath
   }
 
-command :: Parser Command
-command = fmap Diff $ DiffOptions
+diffCommand :: Parser Command
+diffCommand = fmap Diff $ DiffOptions
   <$> strOption (long "english" <> help "Current English filepath")
   <*> strOption (long "translation" <> help "Current translation (e.g., Spanish) filepath")
+
+command :: Parser Command
+command = subparser $
+  Opts.command  "diff" $ info diffCommand $ progDesc "Diff English and translation files"
