@@ -165,11 +165,11 @@ formatUpdatedMovedValues (UpdatedMovedValues values)
 type WarningsText = T.Text
 
 -- | The function to purely integrate changes in translations.
-integrateChanges
+mergeTranslations
   :: OldEnglish -> CurrentEnglish
   -> CurrentTranslations -> NewTranslations
   -> Writer (Maybe WarningsText) UpdatedTranslations
-integrateChanges oldEnglish currentEnglish currentTranslations newTranslations = do
+mergeTranslations oldEnglish currentEnglish currentTranslations newTranslations = do
   let diffMap = findChanges oldEnglish currentEnglish
   let updatedTranslations = applyChanges currentTranslations newTranslations diffMap
   mapWriterW combineWarnings updatedTranslations

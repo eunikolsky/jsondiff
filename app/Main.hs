@@ -1,13 +1,19 @@
 {-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
 module Main where
 
+import Control.Monad.Writer (runWriter)
 import Data.Aeson
 import qualified Data.ByteString.Lazy.Char8 as BSL8 (putStrLn)
 import Data.Map.Strict ((\\))
+import Data.String (IsString)
+import qualified Data.Text.IO as T (hPutStrLn)
 import Options.Applicative hiding (command)
+import System.IO (stderr)
 
+import Diff
 import Lib
 import Options
 import Types
@@ -19,12 +25,34 @@ main = run =<< execParser opts
       ( fullDesc <> header "PoC tool to help with JSON localization files" )
 
 run :: Command -> IO ()
-run (Diff (DiffOptions { currentEnglishFile, currentTranslationFile })) =
-  printDiff currentEnglishFile currentTranslationFile
+run (Diff (DiffOptions { englishFile, translationFile })) =
+  printDiff englishFile translationFile
+run (Integrate (IntegrateOptions { oldEnglishFile, currentEnglishFile, currentTranslationFile, newTranslationFile })) =
+  integrateTranslations oldEnglishFile currentEnglishFile currentTranslationFile newTranslationFile
 
 printDiff :: FilePath -> FilePath -> IO ()
-printDiff file1 file2 = do
-   (Just value1 :: Maybe JKeyValues) <- fmap values <$> decodeFileStrict' file1
-   (Just value2 :: Maybe JKeyValues) <- fmap values <$> decodeFileStrict' file2
-   let diff = value1 \\ value2
+printDiff englishFile translationFile = do
+   english <- decodeFile englishFile
+   translation <- decodeFile translationFile
+   let diff = english \\ translation
    BSL8.putStrLn . encode . unValues $ diff
+
+integrateTranslations :: FilePath -> FilePath -> FilePath -> FilePath -> IO ()
+integrateTranslations oldEnglishFile currentEnglishFile currentTranslationFile newTranslationFile = do
+  oldEnglish <- decodeFile oldEnglishFile
+  currentEnglish <- decodeFile currentEnglishFile
+  currentTranslation <- decodeFile currentTranslationFile
+  newTranslation <- decodeFile newTranslationFile
+  let (updatedTranslation, warnings) = runWriter $ mergeTranslations oldEnglish currentEnglish currentTranslation newTranslation
+  BSL8.putStrLn . encode . unValues $ updatedTranslation
+  mapM_ (T.hPutStrLn stderr . prependNewLine) warnings
+
+prependNewLine :: (IsString s, Semigroup s) => s -> s
+prependNewLine = ("\n" <>)
+
+decodeFile :: FilePath -> IO JKeyValues
+decodeFile file = do
+  d <- decodeFileStrict' file
+  pure $ case d of
+    Nothing -> error $ "Failed to decode JSON file " ++ file
+    Just x -> values x
