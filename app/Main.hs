@@ -1,3 +1,4 @@
+{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
 module Main where
@@ -5,18 +6,21 @@ module Main where
 import Data.Aeson
 import qualified Data.ByteString.Lazy.Char8 as BSL8 (putStrLn)
 import Data.Map.Strict ((\\))
-import System.Environment (getArgs)
-import System.Exit (die)
+import Options.Applicative hiding (command)
 
 import Lib
+import Options
 import Types
 
 main :: IO ()
-main = do
-  args <- getArgs
-  case args of
-    [file1, file2] -> printDiff file1 file2
-    _ -> die "Usage: jsondiff <file1> <file2>"
+main = run =<< execParser opts
+  where
+    opts = info (command <**> helper)
+      ( fullDesc <> header "PoC tool to help with JSON localization files" )
+
+run :: Command -> IO ()
+run (Diff (DiffOptions { currentEnglishFile, currentTranslationFile })) =
+  printDiff currentEnglishFile currentTranslationFile
 
 printDiff :: FilePath -> FilePath -> IO ()
 printDiff file1 file2 = do
