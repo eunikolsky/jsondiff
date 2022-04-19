@@ -1,4 +1,5 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 module Diff.Warnings
@@ -22,62 +23,47 @@ import Types
 type WarningsText = T.Text
 
 -- | A map of json key-values whose value has changed.
-newtype IgnoredOutdatedValues = IgnoredOutdatedValues (JKeyMap (JValue, JValue))
-  deriving (Monoid, Semigroup, Show)
+newtype IgnoredOutdatedValue = IgnoredOutdatedValue (JValue, JValue)
+instance Show IgnoredOutdatedValue where
+  show (IgnoredOutdatedValue v) = show v
 
 -- | A map of json key-values that have been removed.
-newtype IgnoredMissingValues = IgnoredMissingValues JKeyValues
-  deriving (Monoid, Semigroup, Show)
+newtype IgnoredMissingValue = IgnoredMissingValue JValue
+instance Show IgnoredMissingValue where
+  show (IgnoredMissingValue v) = show v
 
 -- | A map of json key-values that have been moved.
-newtype UpdatedMovedValues = UpdatedMovedValues (JKeyMap (NonEmpty JKey))
-  deriving (Monoid, Semigroup, Show)
+newtype UpdatedMovedValue = UpdatedMovedValue (NonEmpty JKey)
+instance Show UpdatedMovedValue where
+  show (UpdatedMovedValue v) = show v
 
 -- | A map of json key-values that have been ignored because the key was not in the old English file.
-newtype IgnoredExtraValues = IgnoredExtraValues JKeyValues
-  deriving (Monoid, Semigroup, Show)
+newtype IgnoredExtraValue = IgnoredExtraValue JValue
+instance Show IgnoredExtraValue where
+  show (IgnoredExtraValue v) = show v
 
--- | Contains changed and removed json key-values.
-data IgnoredValues = IgnoredValues
-  { ivOutdated :: IgnoredOutdatedValues
-  , ivMissing :: IgnoredMissingValues
-  , ivMoved :: UpdatedMovedValues
-  , ivIgnored :: IgnoredExtraValues
-  }
+data IgnoredValue
+  = IVOutdated IgnoredOutdatedValue
+  | IVMissing IgnoredMissingValue
+  | IVMoved UpdatedMovedValue
+  | IVIgnored IgnoredExtraValue
   deriving Show
 
-instance Semigroup IgnoredValues where
-  (IgnoredValues outdated missing moved ignored) <> (IgnoredValues outdated' missing' moved' ignored') =
-    IgnoredValues
-      { ivOutdated = outdated <> outdated'
-      , ivMissing = missing <> missing'
-      , ivMoved = moved <> moved'
-      , ivIgnored = ignored <> ignored'
-      }
+-- | Contains changed and removed json key-values.
+newtype IgnoredValues = IgnoredValues (JKeyMap IgnoredValue)
+  deriving (Monoid, Semigroup, Show)
 
-instance Monoid IgnoredValues where
-  mempty = IgnoredValues
-    { ivOutdated = mempty
-    , ivMissing = mempty
-    , ivMoved = mempty
-    , ivIgnored = mempty
-    }
+ignoredOutdatedValues :: JKey -> (JValue, JValue) -> IgnoredValues
+ignoredOutdatedValues key = IgnoredValues . M.singleton key . IVOutdated . IgnoredOutdatedValue
 
-ignoredOutdatedValues :: JKeyMap (JValue, JValue) -> IgnoredValues
-ignoredOutdatedValues m = let outdated = IgnoredOutdatedValues m
-  in IgnoredValues { ivOutdated = outdated, ivMissing = mempty, ivMoved = mempty, ivIgnored = mempty }
+ignoredMissingValues :: JKey -> JValue -> IgnoredValues
+ignoredMissingValues key = IgnoredValues . M.singleton key . IVMissing . IgnoredMissingValue
 
-ignoredMissingValues :: JKeyValues -> IgnoredValues
-ignoredMissingValues m = let missing = IgnoredMissingValues m
-  in IgnoredValues { ivOutdated = mempty, ivMissing = missing, ivMoved = mempty, ivIgnored = mempty }
+updatedMovedValues :: JKey -> NonEmpty JKey -> IgnoredValues
+updatedMovedValues key = IgnoredValues . M.singleton key . IVMoved . UpdatedMovedValue
 
-updatedMovedValues :: JKeyMap (NonEmpty JKey) -> IgnoredValues
-updatedMovedValues m = let moved = UpdatedMovedValues m
-  in IgnoredValues { ivOutdated = mempty, ivMissing = mempty, ivMoved = moved, ivIgnored = mempty }
-
-ignoredExtraValues :: JKeyValues -> IgnoredValues
-ignoredExtraValues m = let extra = IgnoredExtraValues m
-  in IgnoredValues { ivOutdated = mempty, ivMissing = mempty, ivMoved = mempty, ivIgnored = extra }
+ignoredExtraValues :: JKey -> JValue -> IgnoredValues
+ignoredExtraValues key = IgnoredValues . M.singleton key . IVIgnored . IgnoredExtraValue
 
 combineWarnings :: IgnoredValues -> Maybe WarningsText
 combineWarnings ignoredValues =
@@ -89,18 +75,42 @@ combineWarnings ignoredValues =
       , formatIgnoredExtraValues $ ivIgnored ignoredValues
       ]
 
-formatIgnoredOutdatedValues :: IgnoredOutdatedValues -> Maybe T.Text
-formatIgnoredOutdatedValues (IgnoredOutdatedValues values)
+ivOutdated :: IgnoredValues -> JKeyMap IgnoredOutdatedValue
+ivOutdated (IgnoredValues m) = M.mapMaybe (\case
+    IVOutdated v -> Just v
+    _ -> Nothing
+  ) m
+
+ivMissing :: IgnoredValues -> JKeyMap IgnoredMissingValue
+ivMissing (IgnoredValues m) = M.mapMaybe (\case
+    IVMissing v -> Just v
+    _ -> Nothing
+  ) m
+
+ivMoved :: IgnoredValues -> JKeyMap UpdatedMovedValue
+ivMoved (IgnoredValues m) = M.mapMaybe (\case
+    IVMoved v -> Just v
+    _ -> Nothing
+  ) m
+
+ivIgnored :: IgnoredValues -> JKeyMap IgnoredExtraValue
+ivIgnored (IgnoredValues m) = M.mapMaybe (\case
+    IVIgnored v -> Just v
+    _ -> Nothing
+  ) m
+
+formatIgnoredOutdatedValues :: JKeyMap IgnoredOutdatedValue -> Maybe T.Text
+formatIgnoredOutdatedValues values
   | M.null values = Nothing
   | otherwise = Just . T.intercalate "\n" $
     [ "These keys were ignored because their values changed since the translation was sent:" ]
     <> map formatIgnoredOutdatedValue (M.toAscList values)
   where
-    formatIgnoredOutdatedValue (key, (oldValue, currentValue)) = T.pack $ mconcat
+    formatIgnoredOutdatedValue (key, IgnoredOutdatedValue (oldValue, currentValue)) = T.pack $ mconcat
       [ show key , ": ", show oldValue , " => ", show currentValue ]
 
-formatIgnoredMissingValues :: IgnoredMissingValues -> Maybe T.Text
-formatIgnoredMissingValues (IgnoredMissingValues values)
+formatIgnoredMissingValues :: JKeyMap IgnoredMissingValue -> Maybe T.Text
+formatIgnoredMissingValues values
   | M.null values = Nothing
   | otherwise = Just . T.intercalate "\n" $
     [ "These keys were ignored because they were removed since the translation was sent:" ]
@@ -109,18 +119,18 @@ formatIgnoredMissingValues (IgnoredMissingValues values)
     formatIgnoredMissingValue (key, value) = T.pack $ mconcat
       [ show key , ": ", show value ]
 
-formatUpdatedMovedValues :: UpdatedMovedValues -> Maybe T.Text
-formatUpdatedMovedValues (UpdatedMovedValues values)
+formatUpdatedMovedValues :: JKeyMap UpdatedMovedValue -> Maybe T.Text
+formatUpdatedMovedValues values
   | M.null values = Nothing
   | otherwise = Just . T.intercalate "\n" $
     [ "Values for these keys were applied at new keys:" ]
     <> map formatUpdatedMovedValue (M.toAscList values)
   where
-    formatUpdatedMovedValue (key, newKeys) = T.pack $ mconcat
+    formatUpdatedMovedValue (key, UpdatedMovedValue newKeys) = T.pack $ mconcat
       [ show key , " => ", show $ toList newKeys ]
 
-formatIgnoredExtraValues :: IgnoredExtraValues -> Maybe T.Text
-formatIgnoredExtraValues (IgnoredExtraValues values)
+formatIgnoredExtraValues :: JKeyMap IgnoredExtraValue -> Maybe T.Text
+formatIgnoredExtraValues values
   | M.null values = Nothing
   | otherwise = Just . T.intercalate "\n" $
     [ "These keys were ignored because they were missing in the old English file:" ]
