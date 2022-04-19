@@ -67,7 +67,7 @@ applyChanges current new (DiffMap diffs) = foldrWithKeyM applyDifference current
       Just (MovedValue newKeys) -> do
         recordMovedValue k newKeys
         pure $ foldr (`M.insert` v) acc newKeys
-      Nothing -> pure acc
+      Nothing -> recordExtraValue k v >> pure acc
 
     recordOutdatedValue :: JKey -> JValue -> JValue -> DiffResultsWith ()
     recordOutdatedValue k oldValue newValue =
@@ -80,6 +80,10 @@ applyChanges current new (DiffMap diffs) = foldrWithKeyM applyDifference current
     recordMovedValue :: JKey -> NonEmpty JKey -> DiffResultsWith ()
     recordMovedValue k =
       tell . updatedMovedValues . M.singleton k
+
+    recordExtraValue :: JKey -> JValue -> DiffResultsWith ()
+    recordExtraValue k =
+      tell . ignoredExtraValues . M.singleton k
 
 -- | The function to purely integrate changes in translations.
 mergeTranslations
