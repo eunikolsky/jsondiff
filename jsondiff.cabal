@@ -5,13 +5,13 @@ cabal-version: 1.12
 -- see: https://github.com/sol/hpack
 
 name:           jsondiff
-version:        0.1.0.0
-description:    Please see the README on GitHub at <https://github.com/githubuser/jsondiff#readme>
-homepage:       https://github.com/githubuser/jsondiff#readme
-bug-reports:    https://github.com/githubuser/jsondiff/issues
-author:         Author name here
-maintainer:     example@example.com
-copyright:      2022 Author name here
+version:        0.2.0.0
+description:    Please see the README on GitHub at <https://github.com/eunikolsky/jsondiff#readme>
+homepage:       https://github.com/eunikolsky/jsondiff#readme
+bug-reports:    https://github.com/eunikolsky/jsondiff/issues
+author:         Eugene Nikolsky
+maintainer:     e@egeek.me
+copyright:      2022 Eugene Nikolsky
 license:        BSD3
 license-file:   LICENSE
 build-type:     Simple
@@ -21,7 +21,7 @@ extra-source-files:
 
 source-repository head
   type: git
-  location: https://github.com/githubuser/jsondiff
+  location: https://github.com/eunikolsky/jsondiff
 
 library
   exposed-modules:
