@@ -1,0 +1,14 @@
+{
+  "main": {
+    "no": "no",
+    "yes": "yes"
+  },
+  "group": {
+    "inside": {
+      "group": {
+        "cancel": "Cancel"
+      }
+    }
+  },
+  "root": "Root"
+}
