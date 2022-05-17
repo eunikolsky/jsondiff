@@ -3,6 +3,7 @@ module Lib where
 import Data.Aeson
 import qualified Data.Aeson.Key as AK
 import qualified Data.Aeson.KeyMap as AKM
+import qualified Data.ByteString as B
 import Data.List (singleton)
 import qualified Data.Map.Strict as M
 import qualified Data.Text as T
@@ -10,6 +11,9 @@ import qualified Data.Vector as V (fromList)
 import GHC.Stack (HasCallStack)
 
 import Types
+
+diff :: B.ByteString -> B.ByteString -> IO B.ByteString
+diff english _ = pure english
 
 values :: Value -> JKeyValues
 values = go []

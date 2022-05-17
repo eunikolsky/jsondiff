@@ -37,6 +37,7 @@ library
   build-depends:
       aeson
     , base >=4.7 && <5
+    , bytestring
     , containers
     , mtl
     , optparse-applicative
@@ -67,6 +68,7 @@ test-suite jsondiff-test
   type: exitcode-stdio-1.0
   main-is: Spec.hs
   other-modules:
+      LibSpec
       Paths_jsondiff
   hs-source-dirs:
       test
@@ -74,7 +76,10 @@ test-suite jsondiff-test
   build-depends:
       aeson
     , base >=4.7 && <5
+    , bytestring
     , containers
+    , filepath
+    , hspec
     , jsondiff
     , mtl
     , optparse-applicative
