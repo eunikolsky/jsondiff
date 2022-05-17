@@ -1,3 +1,5 @@
+{-# LANGUAGE OverloadedStrings #-}
+
 module Lib where
 
 import Data.Aeson
@@ -13,7 +15,9 @@ import GHC.Stack (HasCallStack)
 import Types
 
 diff :: B.ByteString -> B.ByteString -> IO B.ByteString
-diff english _ = pure english
+diff english translation
+  | english == translation = pure "{}"
+  | otherwise = pure english
 
 values :: Value -> JKeyValues
 values = go []
