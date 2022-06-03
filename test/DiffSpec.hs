@@ -4,6 +4,7 @@
 
 module DiffSpec where
 
+import Control.Monad.Writer
 import Data.Aeson
 import Data.List
 import Data.Maybe
@@ -11,13 +12,19 @@ import Test.Hspec
 import Text.RawString.QQ (r)
 import qualified Data.Map.Strict as M
 import qualified Data.List.NonEmpty as NE
+import qualified Data.Set as S
 
 import Diff
 import Lib
 import Types
 
 spec :: Spec
-spec = describe "findChanges" $ parallel $ do
+spec = describe "diffSpec" $ parallel $ do
+  findChangesSpec
+  applyChangesSpec
+
+findChangesSpec :: Spec
+findChangesSpec = describe "findChanges" $ do
   it "detects no changes" $ do
     let { diffMap = DiffMap . M.fromList . fmap (, NoChange) $
       [ JKey ["key"]
@@ -72,8 +79,16 @@ contains :: DiffMap -> DiffMap -> Bool
 expected `contains` actual = M.null $ M.differenceWith notSame (unDiffMap expected) (unDiffMap actual)
   where notSame x y = if x /= y then Just x else Nothing
 
+-- | Checks whether @expected@ is a subset of @actual@ (verifying keys and values).
+contains' :: Eq v => JKeyMap v -> JKeyMap v -> Bool
+expected `contains'` actual = M.null $ M.differenceWith notSame expected actual
+  where notSame x y = if x /= y then Just x else Nothing
+
 containsKeys :: [JKey] -> DiffMap -> Bool
 expected `containsKeys` actual = null $ expected \\ M.keys (unDiffMap actual)
+
+containsKeys' :: [JKey] -> JKeyMap v -> Bool
+expected `containsKeys'` actual = null $ expected \\ M.keys actual
 
 old :: OldEnglish
 old = values . fromJust . decode $ [r|
@@ -123,5 +138,102 @@ current = values . fromJust . decode $ [r|
       "object": "new"
     }
   }
+}
+|]
+
+applyChangesSpec :: Spec
+applyChangesSpec = describe "applyChanges" $ do
+  it "applies unchanged keys as is" $ do
+    let { diffMap = DiffMap . M.fromList . fmap (, NoChange) $
+      [ JKey ["author"]
+      , JKey ["nested", "object", "key"]
+      , JKey ["nested", "object", "array"]
+      ]
+    }
+    let updated = M.restrictKeys newTranslations (S.fromList . M.keys . unDiffMap $ diffMap)
+    (fst . runWriter $ applyChanges currentTranslations newTranslations diffMap) `shouldSatisfy` contains' updated
+
+  it "overwrites values for already translated keys" $ do
+    let { diffMap = DiffMap . M.fromList . fmap (, NoChange) $
+      [ JKey ["existing"]
+      , JKey ["nested", "object", "existing"]
+      ]
+    }
+    let updated = M.restrictKeys newTranslations (S.fromList . M.keys . unDiffMap $ diffMap)
+    (fst . runWriter $ applyChanges currentTranslations newTranslations diffMap) `shouldSatisfy` contains' updated
+
+  it "ignores keys for changed values" $ do
+    let { diffMap = DiffMap . M.fromList . fmap (, ValueChange (JValueString "old") (JValueString "new")) $
+      [ JKey ["author"]
+      , JKey ["nested", "object", "key"]
+      , JKey ["nested", "object", "array"]
+      ]
+    }
+    let keys = M.keys . unDiffMap $ diffMap
+    (fst . runWriter $ applyChanges currentTranslations newTranslations diffMap) `shouldNotSatisfy` containsKeys' keys
+
+  it "ignores values for removed keys" $ do
+    let { diffMap = DiffMap . M.fromList . fmap (, MissingValue (JValueString "old")) $
+      [ JKey ["author"]
+      , JKey ["nested", "object", "key"]
+      , JKey ["nested", "object", "array"]
+      ]
+    }
+    let keys = M.keys . unDiffMap $ diffMap
+    (fst . runWriter $ applyChanges currentTranslations newTranslations diffMap) `shouldNotSatisfy` containsKeys' keys
+
+  it "applies values for keys moved to other positions" $ do
+    let { diffMap = DiffMap . M.fromList $
+      [ (JKey ["author"], MovedValue . NE.fromList $ [JKey ["nested", "object", "existing"], JKey ["other"]])
+      , (JKey ["nested", "object", "array"], MovedValue . NE.fromList $ [JKey ["key"], JKey ["nested", "new"]])
+      ]
+    }
+    let updated = values . fromJust . decode $ [r|
+{
+  "key": [ "FOO", "BAR" ],
+  "existing": "existing",
+  "nested": {
+    "object": {
+      "existing": "Translated Author"
+    },
+    "new": [ "FOO", "BAR" ]
+  },
+  "other": "Translated Author"
+}
+    |]
+    (fst . runWriter $ applyChanges currentTranslations newTranslations diffMap) `shouldBe` updated
+
+  it "ignores unexpected keys" $ do
+    let keys = [JKey ["ignore_me"], JKey ["nested", "object", "unexpected"]]
+    let diffMap = DiffMap M.empty
+    (fst . runWriter $ applyChanges currentTranslations newTranslations diffMap) `shouldNotSatisfy` containsKeys' keys
+
+currentTranslations :: CurrentTranslations
+currentTranslations = values . fromJust . decode $ [r|
+{
+  "key": "VALUE",
+  "existing": "existing",
+  "nested": {
+    "object": {
+      "existing": "e"
+    }
+  }
+}
+|]
+
+newTranslations :: NewTranslations
+newTranslations = values . fromJust . decode $ [r|
+{
+  "author": "Translated Author",
+  "existing": "new existing",
+  "nested": {
+    "object": {
+      "key": "42",
+      "array": [ "FOO", "BAR" ],
+      "existing": "E",
+      "unexpected": "unexpected"
+    }
+  },
+  "ignore_me": "true"
 }
 |]
