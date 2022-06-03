@@ -79,7 +79,6 @@ test-suite jsondiff-test
     , base >=4.7 && <5
     , bytestring
     , containers
-    , filepath
     , hspec
     , jsondiff
     , mtl

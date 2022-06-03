@@ -56,7 +56,6 @@ tests:
   jsondiff-test:
     main:                Spec.hs
     source-dirs:         test
-    extra-source-files:  test/files/*
     ghc-options:
     - -Wall
     - -threaded
@@ -64,6 +63,5 @@ tests:
     - -with-rtsopts=-N
     dependencies:
     - jsondiff
-    - filepath
     - hspec
     - raw-strings-qq
