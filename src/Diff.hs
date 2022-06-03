@@ -20,10 +20,10 @@ data Difference
   -- | The value at this key has been moved to 1+ new @keys@ (there can be more
   -- than one key due to duplicate values).
   | MovedValue (NonEmpty JKey)
-  deriving Show
+  deriving (Eq, Show)
 
 newtype DiffMap = DiffMap { unDiffMap :: JKeyMap Difference }
-  deriving Show
+  deriving (Eq, Show)
 
 type OldEnglish = JKeyValues
 type CurrentEnglish = JKeyValues

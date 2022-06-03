@@ -66,3 +66,4 @@ tests:
     - jsondiff
     - filepath
     - hspec
+    - raw-strings-qq
