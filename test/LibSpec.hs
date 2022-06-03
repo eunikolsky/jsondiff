@@ -11,7 +11,7 @@ import qualified Data.ByteString.Lazy as BL
 import Lib
 
 spec :: Spec
-spec = describe "diff" $ do
+spec = describe "diff" $ parallel $ do
   context "when translation file is empty" $
     it "returns the english file" $ do
       let empty = "{}"
