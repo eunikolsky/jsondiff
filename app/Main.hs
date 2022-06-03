@@ -5,9 +5,11 @@ module Main where
 import Data.Aeson
 import qualified Data.ByteString.Lazy.Char8 as BSL8 (putStrLn)
 import Data.Map.Strict ((\\))
-import Lib
 import System.Environment (getArgs)
 import System.Exit (die)
+
+import Lib
+import Types
 
 main :: IO ()
 main = do
