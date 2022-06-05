@@ -45,7 +45,7 @@ library
     , vector
   default-language: Haskell2010
 
-executable jsondiff-exe
+executable jsondiff
   main-is: Main.hs
   other-modules:
       Options
