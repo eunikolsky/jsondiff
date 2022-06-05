@@ -5,13 +5,13 @@ cabal-version: 1.12
 -- see: https://github.com/sol/hpack
 
 name:           jsondiff
-version:        0.1.0.0
-description:    Please see the README on GitHub at <https://github.com/githubuser/jsondiff#readme>
-homepage:       https://github.com/githubuser/jsondiff#readme
-bug-reports:    https://github.com/githubuser/jsondiff/issues
-author:         Author name here
-maintainer:     example@example.com
-copyright:      2022 Author name here
+version:        0.2.0.0
+description:    Please see the README on GitHub at <https://github.com/eunikolsky/jsondiff#readme>
+homepage:       https://github.com/eunikolsky/jsondiff#readme
+bug-reports:    https://github.com/eunikolsky/jsondiff/issues
+author:         Eugene Nikolsky
+maintainer:     e@egeek.me
+copyright:      2022 Eugene Nikolsky
 license:        BSD3
 license-file:   LICENSE
 build-type:     Simple
@@ -21,40 +21,69 @@ extra-source-files:
 
 source-repository head
   type: git
-  location: https://github.com/githubuser/jsondiff
+  location: https://github.com/eunikolsky/jsondiff
 
 library
   exposed-modules:
+      Diff
+      Diff.Warnings
       Lib
+      Types
   other-modules:
       Paths_jsondiff
   hs-source-dirs:
       src
+  ghc-options: -Wall
   build-depends:
-      base >=4.7 && <5
+      aeson
+    , aeson-pretty
+    , base >=4.7 && <5
+    , bytestring
+    , containers
+    , mtl
+    , optparse-applicative
+    , text
+    , vector
   default-language: Haskell2010
 
-executable jsondiff-exe
+executable jsondiff
   main-is: Main.hs
   other-modules:
+      Options
       Paths_jsondiff
   hs-source-dirs:
       app
-  ghc-options: -threaded -rtsopts -with-rtsopts=-N
+  ghc-options: -Wall -Wincomplete-uni-patterns -Wincomplete-record-updates -Wcompat -Widentities -Wredundant-constraints -fhide-source-paths -Wpartial-fields -threaded -rtsopts -with-rtsopts=-N
   build-depends:
-      base >=4.7 && <5
+      aeson
+    , base >=4.7 && <5
+    , bytestring
+    , containers
     , jsondiff
+    , mtl
+    , optparse-applicative
+    , text
   default-language: Haskell2010
 
 test-suite jsondiff-test
   type: exitcode-stdio-1.0
   main-is: Spec.hs
   other-modules:
+      DiffSpec
+      LibSpec
       Paths_jsondiff
   hs-source-dirs:
       test
-  ghc-options: -threaded -rtsopts -with-rtsopts=-N
+  ghc-options: -Wall -threaded -rtsopts -with-rtsopts=-N
   build-depends:
-      base >=4.7 && <5
+      aeson
+    , base >=4.7 && <5
+    , bytestring
+    , containers
+    , hspec
     , jsondiff
+    , mtl
+    , optparse-applicative
+    , raw-strings-qq
+    , text
   default-language: Haskell2010
