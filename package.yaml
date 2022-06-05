@@ -29,6 +29,7 @@ library:
   ghc-options:
   - -Wall
   dependencies:
+  - aeson-pretty
   - vector
 
 executables:

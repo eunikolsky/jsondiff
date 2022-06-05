@@ -6,7 +6,7 @@ module Main where
 
 import Control.Monad.Writer (runWriter)
 import Data.Aeson
-import qualified Data.ByteString.Lazy.Char8 as BSL8 (putStrLn, readFile)
+import qualified Data.ByteString.Lazy.Char8 as BSL8 (putStr, readFile)
 import Data.String (IsString)
 import qualified Data.Text.IO as T (hPutStrLn)
 import Options.Applicative hiding (command)
@@ -33,7 +33,7 @@ printDiff :: FilePath -> FilePath -> IO ()
 printDiff englishFile translationFile = do
    english <- BSL8.readFile englishFile
    translation <- BSL8.readFile translationFile
-   BSL8.putStrLn $ diff english translation
+   BSL8.putStr $ diff english translation
 
 integrateTranslations :: FilePath -> FilePath -> FilePath -> FilePath -> IO ()
 integrateTranslations oldEnglishFile currentEnglishFile currentTranslationFile newTranslationFile = do
@@ -42,7 +42,7 @@ integrateTranslations oldEnglishFile currentEnglishFile currentTranslationFile n
   currentTranslation <- decodeFile currentTranslationFile
   newTranslation <- decodeFile newTranslationFile
   let (updatedTranslation, warnings) = runWriter $ mergeTranslations oldEnglish currentEnglish currentTranslation newTranslation
-  BSL8.putStrLn . encode . unValues $ updatedTranslation
+  BSL8.putStr . jq . unValues $ updatedTranslation
   mapM_ (T.hPutStrLn stderr . prependNewLine) warnings
 
 prependNewLine :: (IsString s, Semigroup s) => s -> s
