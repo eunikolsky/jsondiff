@@ -9,6 +9,11 @@ on:
     tags:
       - "v*"
 
+permissions:
+  # allows to create releases from a workflow; this is required when repo's
+  # actions workflow permissions is set to "Read repository contents permission"
+  contents: write
+
 jobs:
   create_release:
     name: Create Github Release
