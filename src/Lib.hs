@@ -1,15 +1,27 @@
 module Lib where
 
 import Data.Aeson
+import qualified Data.Aeson.Encode.Pretty as AP
 import qualified Data.Aeson.Key as AK
 import qualified Data.Aeson.KeyMap as AKM
+import qualified Data.ByteString.Lazy as BL
 import Data.List (singleton)
+import Data.Map.Strict ((\\))
+import Data.Maybe (fromJust)
 import qualified Data.Map.Strict as M
 import qualified Data.Text as T
 import qualified Data.Vector as V (fromList)
 import GHC.Stack (HasCallStack)
 
 import Types
+
+-- | Calculates the difference between two JSON objects and returns it in a JSON format,
+-- that is returning only those keys in the first object that are not present in the second one.
+diff :: BL.ByteString -> BL.ByteString -> BL.ByteString
+diff english translation = jq . unValues $ forceDecode english \\ forceDecode translation
+  where
+    forceDecode :: BL.ByteString -> JKeyValues
+    forceDecode = values . fromJust . decode
 
 values :: Value -> JKeyValues
 values = go []
@@ -57,3 +69,15 @@ unfoldJKeyValue (JKey keyPath) value = foldr iter AKM.empty keyPath
     jsonValue :: JValue -> Value
     jsonValue (JValueString s) = String s
     jsonValue (JValueArray a) = Array . V.fromList $ String <$> a
+
+-- | Pretty-prints JSON @Value@ as @jq@ does.
+jq :: Value -> BL.ByteString
+jq = AP.encodePretty' jqConfig
+  where
+    jqConfig :: AP.Config
+    jqConfig = AP.Config
+      { AP.confIndent = AP.Spaces 2
+      , AP.confCompare = compare
+      , AP.confNumFormat = AP.Generic
+      , AP.confTrailingNewline = True
+      }

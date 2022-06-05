@@ -1,0 +1,45 @@
+# based on https://kodimensional.dev/github-actions
+
+name: CI
+
+on:
+  push:
+    branches:
+      - '**'
+    tags-ignore:
+      # `release.yml` handles version tags; no need for duplicate work
+      - "v*"
+  pull_request:
+
+jobs:
+  stack:
+    name: stack
+    runs-on: macos-10.15
+    steps:
+      - uses: actions/checkout@v2
+
+      - uses: haskell/actions/setup@v1
+        with:
+          enable-stack: true
+
+      - uses: actions/cache@v3
+        name: Cache ~/.stack
+        with:
+          path: ~/.stack
+          key: ${{ runner.os }}-stack-global-${{ hashFiles('stack.yaml') }}-${{ hashFiles('package.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-stack-global-
+
+      - uses: actions/cache@v3
+        name: Cache .stack-work
+        with:
+          path: .stack-work
+          key: ${{ runner.os }}-stack-work-${{ hashFiles('stack.yaml') }}-${{ hashFiles('package.yaml') }}-${{ hashFiles('**/*.hs') }}
+          restore-keys: |
+            ${{ runner.os }}-stack-work-
+
+      - name: Build
+        run: stack build --system-ghc --test --no-run-tests
+
+      - name: Test
+        run: stack test --system-ghc
