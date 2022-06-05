@@ -139,7 +139,7 @@ This is the simplest case, the Spanish string can be copied as is. For example:
 
 The output is:
 
-```json
+```
 $ jsondiff integrate --old-english old_en.json --current-english en.json --current-translation es.json --new-translation new_es.json
 {
   "existing": "EXISTING",
@@ -354,4 +354,12 @@ unknown: "UNKNOWN"
 
 ## Known issues
 
-* The program expects JSON files only with objects with types of values `string`, `array of strings` and `object`s with the same restrictions recursively. Any other type will terminate the program.
+* The program expects JSON files only with objects with types of values `string`, `array of strings` and `object`s with the same restrictions recursively. Encountering any other type will terminate the program:
+
+    ```
+    $ jsondiff diff --english <( echo '{"key":"value", "incorrect":42, "nested": {"null":null} }' ) --translation <( echo '{}' )
+    jsondiff: Unexpected null at ["nested","null"]
+    CallStack (from HasCallStack):
+      error, called at src/Lib.hs:49:36 in jsondiff-0.2.0.0-v9eJp9A7FSB7sAvbhY2bS:Lib
+      unexpectedType, called at src/Lib.hs:46:23 in jsondiff-0.2.0.0-v9eJp9A7FSB7sAvbhY2bS:Lib
+    ```
