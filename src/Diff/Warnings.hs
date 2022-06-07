@@ -67,7 +67,7 @@ ignoredExtraValues key = IgnoredValues . M.singleton key . IVIgnored . IgnoredEx
 
 combineWarnings :: IgnoredValues -> Maybe WarningsText
 combineWarnings ignoredValues =
-  fmap (T.intercalate "\n") . maybeNonEmpty $
+  fmap (T.intercalate "\n\n") . maybeNonEmpty $
     catMaybes
       [ formatIgnoredOutdatedValues $ ivOutdated ignoredValues
       , formatIgnoredMissingValues $ ivMissing ignoredValues
