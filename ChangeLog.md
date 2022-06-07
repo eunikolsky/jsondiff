@@ -6,7 +6,7 @@
 
     ```
     These keys were ignored because their values changed since the translation was sent:
-    key: "value\10067" => ["value", "changed\8592\10052\65039"]
+    key: "value\10067" => ["value","changed\8592\10052\65039"]
     ```
 
     is now shown as:
