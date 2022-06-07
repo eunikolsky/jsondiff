@@ -27,8 +27,14 @@ data JValue
   deriving Eq
 
 instance Show JValue where
-  show (JValueString s) = show s
-  show (JValueArray a) = show a
+  show (JValueString s) = T.unpack . wrapIn "\"" $ s
+  show (JValueArray a) = T.unpack . wrapBetween "[" "]" . T.intercalate ", " . fmap (wrapIn "\"") $ a
+
+wrapBetween :: T.Text -> T.Text -> T.Text -> T.Text
+wrapBetween l r s = l <> s <> r
+
+wrapIn :: T.Text -> T.Text -> T.Text
+wrapIn l = wrapBetween l l
 
 type JKeyMap = M.Map JKey
 
