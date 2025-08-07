@@ -62,3 +62,9 @@ CLI interface using `optparse-applicative` for command parsing.
 - `test/` - Hspec test suite
 - `stack.yaml` - Stack configuration using LTS 19.0
 - `package.yaml` - Hpack package configuration
+
+## Development Guidelines
+
+- **Commit Messages**: Use clear, descriptive commit messages without emojis
+- **Testing**: Always run `stack test` before committing changes
+- **Code Style**: Follow existing Haskell conventions and formatting
