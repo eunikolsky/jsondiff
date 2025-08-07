@@ -48,7 +48,7 @@ values = go []
     unexpectedType :: HasCallStack => String -> Path -> a
     unexpectedType jtype keyPath = error $ mconcat ["Unexpected ", jtype, " at ", show $ reverse keyPath]
 
-unValues :: JKeyValues -> Value
+unValues :: HasCallStack => JKeyValues -> Value
 unValues = Object
   . foldr combine AKM.empty
   . M.foldMapWithKey (\k -> singleton . unfoldJKeyValue k)
