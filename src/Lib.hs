@@ -56,7 +56,9 @@ unValues = Object
     combine :: Object -> Object -> Object
     combine = AKM.unionWith $ \v1 v2 -> case (v1, v2) of
       (Object o1, Object o2) -> Object $ combine o1 o2
-      _ -> error "Unexpected non-object values"
+      (Object o1, _) -> Object o1  -- Prefer object over non-object
+      (_, Object o2) -> Object o2  -- Prefer object over non-object
+      _ -> v1  -- Both non-objects, prefer first (arbitrary choice)
 
 unfoldJKeyValue :: JKey -> JValue -> Object
 unfoldJKeyValue (JKey keyPath) value = foldr iter AKM.empty keyPath
