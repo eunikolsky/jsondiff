@@ -45,7 +45,7 @@ jobs:
   build_artifact:
     needs: [create_release]
     name: ${{ github.ref }}
-    runs-on: macos-10.15
+    runs-on: macos-13
 
     steps:
       - name: Check out code
