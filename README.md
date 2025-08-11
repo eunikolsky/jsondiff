@@ -342,6 +342,27 @@ These keys were ignored because they were missing in the old English file:
 unknown: "UNKNOWN"
 ```
 
+#### Type change for a key
+
+If a key's type has changed since the translation was sent, the program will try to merge the `json`s preferring objects and will log type conflicts. Example:
+
+```bash
+$ jsondiff integrate \
+  --old-english <( echo '{"key":"value"}' ) \
+  --current-english <( echo '{"key":{"nested":"value"}}' ) \
+  --current-translation <( echo '{"key":""}' ) \
+  --new-translation <( echo '{"key":"translated"}' )
+TYPE CONFLICT: key='key' string vs object (preferring object)
+{
+  "key": {
+    "nested": "translated"
+  }
+}
+
+Values for these keys were applied at new keys:
+key => [key.nested]
+```
+
 ## Building
 
 [Haskell `stack`](https://docs.haskellstack.org/en/stable/README/) is used to manage the project.

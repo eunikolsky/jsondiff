@@ -1,5 +1,9 @@
 # Changelog for `jsondiff`
 
+## 0.2.2
+
+* Avoid program termination when an English key's type has changed and the translation contains the old type.
+
 ## 0.2.1
 
 * Fix Unicode strings output in the warnings. For example, the output:

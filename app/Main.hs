@@ -9,6 +9,7 @@ import Data.Aeson
 import qualified Data.ByteString.Lazy.Char8 as BSL8 (putStr, readFile)
 import Data.String (IsString)
 import qualified Data.Text.IO as T (hPutStrLn)
+import GHC.Stack (HasCallStack)
 import Options.Applicative hiding (command)
 import System.IO (stderr)
 
@@ -35,7 +36,7 @@ printDiff englishFile translationFile = do
    translation <- BSL8.readFile translationFile
    BSL8.putStr $ diff english translation
 
-integrateTranslations :: FilePath -> FilePath -> FilePath -> FilePath -> IO ()
+integrateTranslations :: HasCallStack => FilePath -> FilePath -> FilePath -> FilePath -> IO ()
 integrateTranslations oldEnglishFile currentEnglishFile currentTranslationFile newTranslationFile = do
   oldEnglish <- decodeFile oldEnglishFile
   currentEnglish <- decodeFile currentEnglishFile
