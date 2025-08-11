@@ -11,6 +11,7 @@ import Data.Maybe (fromJust)
 import qualified Data.Map.Strict as M
 import qualified Data.Text as T
 import qualified Data.Vector as V (fromList)
+import Debug.Trace
 import GHC.Stack (HasCallStack)
 
 import Types
@@ -48,17 +49,31 @@ values = go []
     unexpectedType :: HasCallStack => String -> Path -> a
     unexpectedType jtype keyPath = error $ mconcat ["Unexpected ", jtype, " at ", show $ reverse keyPath]
 
+valueTypeName :: Value -> String
+valueTypeName (String _) = "string"
+valueTypeName (Number _) = "number"
+valueTypeName (Bool _) = "boolean"
+valueTypeName (Array _) = "array"
+valueTypeName Null = "null"
+valueTypeName (Object _) = "object"
+
 unValues :: HasCallStack => JKeyValues -> Value
 unValues = Object
   . foldr combine AKM.empty
   . M.foldMapWithKey (\k -> singleton . unfoldJKeyValue k)
   where
     combine :: Object -> Object -> Object
-    combine = AKM.unionWith $ \v1 v2 -> case (v1, v2) of
+    combine o1 o2 = AKM.unionWithKey combineValues o1 o2
+
+    combineValues :: AK.Key -> Value -> Value -> Value
+    combineValues key v1 v2 = case (v1, v2) of
       (Object o1, Object o2) -> Object $ combine o1 o2
-      (Object o1, _) -> Object o1  -- Prefer object over non-object
-      (_, Object o2) -> Object o2  -- Prefer object over non-object
-      _ -> v1  -- Both non-objects, prefer first (arbitrary choice)
+      (Object o1, _) -> trace ("TYPE CONFLICT: key='" ++ T.unpack (AK.toText key) ++
+                              "' object vs " ++ valueTypeName v2 ++ " (preferring object)") (Object o1)
+      (_, Object o2) -> trace ("TYPE CONFLICT: key='" ++ T.unpack (AK.toText key) ++
+                              "' " ++ valueTypeName v1 ++ " vs object (preferring object)") (Object o2)
+      _ -> trace ("TYPE CONFLICT: key='" ++ T.unpack (AK.toText key) ++
+                  "' " ++ valueTypeName v1 ++ " vs " ++ valueTypeName v2) v1
 
 unfoldJKeyValue :: JKey -> JValue -> Object
 unfoldJKeyValue (JKey keyPath) value = foldr iter AKM.empty keyPath
