@@ -68,6 +68,7 @@ unValues = Object
     combineValues :: AK.Key -> Value -> Value -> Value
     combineValues key v1 v2 = case (v1, v2) of
       (Object o1, Object o2) -> Object $ combine o1 o2
+      -- FIXME come up with a better logging system here
       (Object o1, _) -> trace ("TYPE CONFLICT: key='" ++ T.unpack (AK.toText key) ++
                               "' object vs " ++ valueTypeName v2 ++ " (preferring object)") (Object o1)
       (_, Object o2) -> trace ("TYPE CONFLICT: key='" ++ T.unpack (AK.toText key) ++
